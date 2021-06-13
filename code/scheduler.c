@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
     int AlgChoice = atoi(argv[1]);
     printf("AlgChoice is %d\n", AlgChoice);
     initClk();
+  
     key_t key_id;
     int rec_val, msgq_id;
     key_id = ftok("keyfile.txt", 33);           // create unique key

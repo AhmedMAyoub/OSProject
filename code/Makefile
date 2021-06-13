@@ -8,7 +8,8 @@ build:
 clean:
 	rm -f *.out  processes.txt
 
-all: clean build
+all: clean build run
 
 run:
+	./test_generator.out
 	./process_generator.out
