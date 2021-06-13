@@ -60,3 +60,15 @@ void destroyClk(bool terminateAll)
         killpg(getpgrp(), SIGINT);
     }
 }
+
+struct process
+{
+    int id;
+    int arrTime;
+    int runTime;
+    int waitTime;
+    int totalTime;
+    int remainingTime;
+    int priority;
+    char status[50];
+};
