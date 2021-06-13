@@ -1,11 +1,40 @@
 #include "headers.h"
 #include <errno.h>
+#include <string.h>
 
 struct msgbuff
 {
     long mtype;
     char mtext[256];
 };
+
+struct process
+{
+    int id;
+    int arrTime;
+    int runTime;
+    int waitTime;
+    int totalTime;
+    char status[50];
+    int remainingTime;
+};
+
+void FCFS(struct process CurrProcess){
+    int CurrClock = getClk(); //get current time when process enters
+    printf("Curren time upon entering %d\n", CurrClock);
+    strcpy(CurrProcess.status, "running"); //setting status of process to running
+    int FinishTime = CurrClock + CurrProcess.runTime; //calculating when process should be finished
+    printf("current process is %d and finish time is %d\n", CurrProcess.id, FinishTime);
+    while(true){
+        printf("Current time is %d\n", getClk());
+        printf("Finish time is %d\n", FinishTime);
+        if(getClk() == FinishTime){
+            printf("process %d is finished\n", CurrProcess.id);
+            strcpy(CurrProcess.status,"finished");
+            break;
+        }
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -49,12 +78,29 @@ int main(int argc, char *argv[])
         
     }
     //TODO: implement the scheduler.
-    printf("hena");
+    struct process p1;
+    struct process p2;
+    struct process p3;
+    p1.id = 1;
+    p1.arrTime = 0;
+    p1.runTime = 10;
+    p2.id = 2;
+    p2.arrTime = 1;
+    p2.runTime = 3;
+    p3.id = 3;
+    p3.arrTime = 7;
+    p3.runTime = 6;
+    int n = 3;
+    struct process processArray[3] = {p1, p2, p3};
+    printf("hena\n");
     switch (AlgChoice)
     {
     case 1:
         //FCFS
         printf("First come First serve");
+        for (int i=0; i<3; i++){
+            FCFS(processArray[i]);
+        }
         break;
     case 2:
         //SJF
@@ -73,6 +119,7 @@ int main(int argc, char *argv[])
         break;
     }
     //TODO: upon termination release the clock resources.
-    destroyClk(true);
+    printf("khalasna");
+    exit(-1);
     return 0;
 }
