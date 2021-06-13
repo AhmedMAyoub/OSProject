@@ -28,17 +28,15 @@ int main(int argc, char *argv[])
 
     // 1. Read the input files.
     FILE *fp;
-    char *fileName = "processes.txt";
+    char *fileName = argv[1];
+    int schedAlgo = atoi(argv[3]); // Here  we take the number of the scheduling algorithm
+    int algoParams = atoi(argv[5]);
+    printf("Sched Algo number %d\n", schedAlgo);
+    printf("Algo Parameters %d\n", algoParams);
     countProcesses(fp, fileName);
     struct process processesArr[processCount];
     readInputFile(fp, fileName, processesArr);
-    printf("%d\n", processCount);
-    for (int i=0; i<processCount; i++) {
-        printf("ID of process is %d\n", processesArr[i].id);
-        printf("ArrTime of process is %d\n", processesArr[i].arrTime);
-        printf("RunTime of process is %d\n", processesArr[i].runTime);
-        printf("Priority of process is %d\n\n", processesArr[i].priority);
-    }
+    printf("Process Count %d\n", processCount);
     // 2. Read the chosen scheduling algorithm and its parameters, if there are any from the argument list.
     // 3. Initiate and create the scheduler and clock processes.
     // 4. Use this function after creating the clock process to initialize clock.
