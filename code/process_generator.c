@@ -13,7 +13,7 @@ struct process {
 int processCount = 0;
 
 void clearResources(int);
-int readInputFile();
+void readInputFile(FILE* fp, char*fileName, struct process* processes);
 void countProcesses(FILE* fp, char*fileName);
 
 int main(int argc, char *argv[])
@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
     FILE *fp;
     char* fileName = "processes.txt";
     countProcesses(fp, fileName);
+    struct process* processes[processCount];
+
     printf("%d\n", processCount);
     // 2. Read the chosen scheduling algorithm and its parameters, if there are any from the argument list.
     // 3. Initiate and create the scheduler and clock processes.
@@ -43,26 +45,51 @@ int main(int argc, char *argv[])
 void clearResources(int signum)
 {
     //TODO Clears all resources in case of interruption
+    kill(SIGKILL, getpid());
 }
 
-int readInputFile() {
-    
-}
-
-void countProcesses(FILE* fp, char*fileName) {  //function counts number of lines in file and subtracts one for header file to count proccesses
+void readInputFile(FILE* fp, char*fileName, struct process* processes) {
     fp = fopen(fileName, "r");
-    if(fp == NULL){
-        printf("Could not open file %s",fileName);
-    }
-    else {
-        char ch;
-        while(!feof(fp)){
-            ch = fgetc(fp);
-            if (ch == '\n'){
-                processCount++;
+    char chr = fgetc(fp);
+    while (!feof(fp))
+    {
+        if (chr == '#')
+        {
+            while (chr != '\n'){
+                chr = fgetc(fp);
             }
+            chr = fgetc(fp);
         }
-        processCount--;
+        //Count whenever new line is encountered
+        if (chr == '\n')
+        {
+            chr = fgetc(fp);
+        }
+        //take next character from file.
+        chr = fgetc(fp);
     }
-    fclose(fp);
+    fclose(fp); //close file.
+}
+
+void countProcesses(FILE* fp, char*fileName) {  //function counts number of processes
+    fp = fopen(fileName, "r");
+    char chr = fgetc(fp);
+    while (!feof(fp))
+    {
+        if (chr == '#')
+        {
+            while (chr != '\n'){
+                chr = fgetc(fp);
+            }
+            chr = fgetc(fp);
+        }
+        //Count whenever new line is encountered
+        if (chr == '\n' && chr != ' ')
+        {
+            processCount++;
+        }
+        //take next character from file.
+        chr = fgetc(fp);
+    }
+    fclose(fp); //close file.
 }
