@@ -35,10 +35,10 @@ int main(int argc, char *argv[])
         char *args[] = {"./clk.out", NULL}; // using this to initialize clk.c
         printf("initializing clock\n");
         execvp(args[0], args);
-        exit(0);
     }
     else
     { //code for process_generator
+        initClk();
         key_t msgQScheduler;
         int rec_val, msgQSched_id;
         msgQScheduler = ftok("keyfile.txt", 33); // create unique key
@@ -49,12 +49,10 @@ int main(int argc, char *argv[])
             char *args[] = {"./scheduler.out", schedAlgo, algoParams, NULL}; // using this to initialize scheduelr.c
             printf("initializing clock\n");
             execvp(args[0], args);
-            exit(0);
         }
         else //code if i am the process_generator to keep checking the processes and send them to scheduler
         {
             // 4. Use this function after creating the clock process to initialize clock.
-            initClk();
             int processNum=0;
             int stat_locSched;
             int schPId =0;
