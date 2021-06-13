@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
             initClk();
             int processNum=0;
             int stat_locSched;
-            int schPId;
+            int schPId =0;
             while (1)
             {
                 if(processesArr[processNum].arrTime == getClk()){
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
                     processNum++;
                 }
                 schPId = waitpid(schedulerPId, &stat_locSched, WNOHANG);
-                if(!(stat_locSched & 0x00FF)) {
+                if(schPId != 0 && schPId != -1) {
                     //Scheduler finished and terminated with exit code
                     printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched>>8);
                     msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
