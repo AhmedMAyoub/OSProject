@@ -1,6 +1,7 @@
 #include "headers.h"
 
 void clearResources(int);
+void readInputFile();
 
 int main(int argc, char *argv[])
 {
