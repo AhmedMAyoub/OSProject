@@ -28,24 +28,31 @@ int main(int argc, char *argv[])
     }
     int receivedP = 0;
     processToReceive.processtype=1;
-    while (getClk() != 100)
+    while (1)
     {
         printf("time is %d\n", getClk());
-        while (receivedP < processCount)
-        {
-            rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
-            if (rec_val == -1)
-            {
-                perror("Error in receive");
-            }
-            else
-            {
-                printf("new process received with processId %d", processToReceive.p.id);
-                receivedP++;
-            }
+        // while (receivedP < processCount)
+        // {
+        //     rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+        //     if (rec_val == -1)
+        //     {
+        //         perror("Error in receive");
+        //     }
+        //     else
+        //     {
+        //         printf("new process rec with processId %d", processToReceive.p.id);
+        //         receivedP++;
+        //     }
+        // }
+        rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+        if (processToReceive.p.id == -1) {
+            break;
         }
+        printf("processRec with id %d\n", processToReceive.p.id);
+        printf("processRec with arrTime %d\n", processToReceive.p.arrTime);
     }
-    destroyClk(true);
+    printf("rec Done scheduler \n");
+    // destroyClk(true);
     exit(0);
     //TODO: implement the scheduler.
     //TODO: upon termination release the clock resources.

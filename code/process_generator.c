@@ -5,6 +5,7 @@
 int processCount = 0;
 int clockPId;
 int schedulerPId;
+int currTime;
 
 void clearResources(int);
 void readInputFile(FILE *fp, char *fileName, struct process *processes);
@@ -78,29 +79,32 @@ int main(int argc, char *argv[])
             int schPId = 0;
             struct msgBuffProcesses processToSend;
             processToSend.processtype = 1;
+            processToSend.p = processesArr[0];
             int send_val;
+            int processesSent = 0;
             while (1)
             {
-                if (processesArr[processNum].arrTime == getClk())
-                    while (processesArr[processNum].arrTime == getClk())
-                    {
-                        // Send process to scheduler
-                        processToSend.p = processesArr[processNum];
-                        send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
-                        if (send_val == -1)
-                        {
-                            perror("Errror in send");
-                        }
-                        processNum++;
-                    }
-                schPId = waitpid(schedulerPId, &stat_locSched, 0);
-                if (!(stat_locSched & 0x00FF))
+                while (processesArr[processesSent].arrTime == getClk())
                 {
-                    //Scheduler finished and terminated with exit code
-                    printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched >> 8);
-                    msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
+                    processToSend.p = processesArr[processesSent];
+                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                    processesSent++;
+                }
+                if (processesSent == processCount)
+                {
+                    processToSend.p.id = -1;
+                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
                     break;
                 }
+            }
+            printf("sending done\n");
+            schPId = waitpid(schedulerPId, &stat_locSched, 0);
+            if (!(stat_locSched & 0x00FF))
+            {
+                //Scheduler finished and terminated with exit code
+                printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched >> 8);
+                msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
+                destroyClk(true);
             }
         }
     }
@@ -109,7 +113,7 @@ int main(int argc, char *argv[])
     // 5. Create a data structure for processes and provide it with its parameters.
     // 6. Send the information to the scheduler at the appropriate time.
     // 7. Clear clock resources
-    destroyClk(true);
+    return 0;
 }
 
 void clearResources(int signum)
