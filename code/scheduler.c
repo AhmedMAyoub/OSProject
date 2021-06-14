@@ -116,6 +116,7 @@ void handleProcessFinish()
     totalProcessesDone = totalProcessesDone + 1;
 }
 
+void SJF();
 void HPF();
 
 int main(int argc, char *argv[])
@@ -144,7 +145,7 @@ int main(int argc, char *argv[])
         ReceivingLoopFCFS();
         break;
     case 2:
-        // do  SJF
+        SJF();
         break;
     case 3:
         // do HPF
@@ -211,6 +212,57 @@ void receiveInitialHPF()
         printf("gowa loop \n");
         p = peek(&priorityQHead);
         printf("ana awel priority %d \n", p->priority);
+        pop(&priorityQHead);
+    }
+}
+
+void SJF()
+{
+    while (1)
+    {
+        currTime = getClk();
+        if (currTime != prevTime)
+        {
+            if (receivedP == processCount) //will be changed once we implement algorithms
+            {
+                break;
+                printf("total %d\n", totalProcessesDone);
+            }
+            processToReceive.processtype = 1;
+            printf("time is %d\n", currTime);
+            prevTime = currTime;
+            while (1)
+            {
+                rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+                int printTime = getClk();
+                if (processToReceive.p.id == -1)
+                {
+                    break;
+                }
+                else
+                {
+                    if (priorityQHead == NULL)
+                    {
+                        printf("ha3ml enqueue using new node \n");
+                        priorityQHead = newNode(&processesArr[receivedP], processesArr[receivedP].runTime);
+                        receivedP++;
+                    }
+                    else
+                    {
+                        printf("ha3ml enqueue using push\n");
+                        push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].runTime);
+                        receivedP++;
+                    }
+                }
+            }
+        }
+    }
+    struct process *p;
+    for (int i = 0; i < 5; i++)
+    {
+        printf("gowa loop \n");
+        p = peek(&priorityQHead);
+        printf("ana awel runtime %d \n", p->runTime);
         pop(&priorityQHead);
     }
 }
