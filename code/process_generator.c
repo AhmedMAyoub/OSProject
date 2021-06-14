@@ -5,6 +5,8 @@
 int processCount = 0;
 int clockPId;
 int schedulerPId;
+int currTime = 0;
+int prevTime = 0;
 
 void clearResources(int);
 void readInputFile(FILE *fp, char *fileName, struct process *processes);
@@ -20,60 +22,99 @@ int main(int argc, char *argv[])
     FILE *fp;
     char *fileName = argv[1];
     countProcesses(fp, fileName);
-    struct process processesArr[processCount];
+    struct process *processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     readInputFile(fp, fileName, processesArr);
     printf("Process Count %d\n", processCount);
     // 2. Read the chosen scheduling algorithm and its parameters, if there are any from the argument list.
-    int schedAlgo = atoi(argv[3]); // Here  we take the number of the scheduling algorithm
-    int algoParams = atoi(argv[5]);
-    printf("Sched Algo number %d\n", schedAlgo);
-    printf("Algo Parameters %d\n", algoParams);
+    char *schedAlgo = argv[3]; // Here  we take the number of the scheduling algorithm
+    char *algoParams = argv[5];
+    printf("Sched Algo number %s\n", schedAlgo);
+    printf("Algo Parameters %s\n", algoParams);
     // 3. Initiate and create the scheduler and clock processes.
     clockPId = fork();
     if (clockPId == 0) //code to be executed if you are the clock child
     {
         char *args[] = {"./clk.out", NULL}; // using this to initialize clk.c
-        printf("initializing clock\n");
         execvp(args[0], args);
+        exit(-1);
+    }
+    else if (clockPId == -1)
+    {
+        printf("Cannot create clock process");
         exit(0);
     }
     else
-    { //code for process_generator
-        key_t msgQScheduler;
-        int rec_val, msgQSched_id;
-        msgQScheduler = ftok("keyfile.txt", 33); // create unique key
-        msgQSched_id = msgget(msgQScheduler, 0666 | IPC_CREAT);
+    { //code for process_generator after forking child
+        initClk();
         schedulerPId = fork();
         if (schedulerPId == 0) // code if i am the scheduler child
         {
-            char *args[] = {"./scheduler.out", schedAlgo, algoParams, NULL}; // using this to initialize scheduelr.c
-            printf("initializing clock\n");
+            char pCount[20];
+            sprintf(pCount, "%d", processCount);
+            char *args[] = {"./scheduler.out", schedAlgo, algoParams, pCount, NULL}; // using this to initialize scheduelr.c
+            printf("initializing scheduler\n");
             execvp(args[0], args);
+            exit(-1);
+        }
+        else if (schedulerPId == -1)
+        {
+            printf("Cannot create scheduler process");
             exit(0);
         }
         else //code if i am the process_generator to keep checking the processes and send them to scheduler
         {
+            key_t msgQScheduler;
+            int rec_val, msgQSched_id;
+            msgQScheduler = ftok("keyfile.txt", 33); // create unique key
+            msgQSched_id = msgget(msgQScheduler, 0666 | IPC_CREAT);
+            if (msgQSched_id == -1)
+            {
+                perror("Error in create");
+            }
+            printf("Message Queue ID = %d\n", msgQSched_id);
+            printf("clock pid is %d\n", clockPId);
+            printf("scheduler pid is %d\n", schedulerPId);
             // 4. Use this function after creating the clock process to initialize clock.
-            initClk();
-            int processNum=0;
+            int processNum = 0;
             int stat_locSched;
-            int schPId;
+            int schPId = 0;
+            int send_val;
+            int processesSent = 0;
             while (1)
             {
-                if(processesArr[processNum].arrTime == getClk()){
-                    // Send process to scheduler
-                    processNum++;
-                }
-                schPId = waitpid(schedulerPId, &stat_locSched, WNOHANG);
-                if(!(stat_locSched & 0x00FF)) {
-                    //Scheduler finished and terminated with exit code
-                    printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched>>8);
-                    msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
+                if (processesSent == processCount)
+                {
                     break;
                 }
-
+                currTime = getClk();
+                if (currTime != prevTime)
+                {
+                    struct msgBuffProcesses processToSend;
+                    processToSend.processtype = 1;
+                    prevTime = currTime;
+                    if (processesArr[processesSent].arrTime == getClk() && processesSent < processCount)
+                    {
+                        while (processesArr[processesSent].arrTime == getClk() && processesSent < processCount)
+                        {
+                            processToSend.p = processesArr[processesSent];
+                            send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                            processesSent++;
+                        }
+                    }
+                    processToSend.p.id = -1;
+                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                }
             }
-            destroyClk(true);
+            printf("sending done\n");
+            schPId = waitpid(schedulerPId, &stat_locSched, 0);
+            if (!(stat_locSched & 0x00FF))
+            {
+                //Scheduler finished and terminated with exit code
+                printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched >> 8);
+                msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
+                raise(SIGKILL);
+                destroyClk(true);
+            }
         }
     }
     // printf("Current Time is %d\n", x);
@@ -81,7 +122,7 @@ int main(int argc, char *argv[])
     // 5. Create a data structure for processes and provide it with its parameters.
     // 6. Send the information to the scheduler at the appropriate time.
     // 7. Clear clock resources
-    destroyClk(true);
+    return 0;
 }
 
 void clearResources(int signum)

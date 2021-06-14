@@ -1,29 +1,40 @@
 #include "headers.h"
 
-struct node;
+struct Node;
 
-struct node{
-    struct process* process;
-    struct node* nextNode;
+struct Node{
+    struct process* processObj;
+    struct Node* nextNodePtr;
 };
 
-struct queue{
-    struct node* headPtr;
-    struct node* tailPtr;
+struct Queue{
+    struct Node* headPtr;
+    struct Node* tailPtr;
 };
 
-
-
-struct queue* initizalize(){
-    struct queue* q = (struct queue*)malloc(sizeof(struct queue));
-    q->headPtr = NULL;
-    q->tailPtr = NULL;
-    return q;
+//Creates a Node
+struct Node* Node_Constructor(struct process* processObj){
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    newNode->processObj = processObj;
+    newNode->nextNodePtr = NULL;
+    return newNode;
 }
 
+//Creates an empty queue
+struct Queue* Queue_Constructor(){
+    struct Queue* newQ = (struct Queue*)malloc(sizeof(struct Queue));
+    newQ->headPtr = NULL;
+    newQ->tailPtr = NULL;
+    return newQ;
+}
 
+//Frees memory allocated by the node constructor
+void Node_Destructor(struct Node* n){
+    free(n);
+}
 
-bool isEmpty(struct queue* q){
+//Checks if queue is empty
+bool isEmpty(struct Queue* q){
     if(q->headPtr==NULL){
         return true;
     }else{
@@ -31,34 +42,57 @@ bool isEmpty(struct queue* q){
     }
 }
 
-
-void enqueue(struct queue* q , struct process* p){
-    struct node* processNode ;
-    processNode->process=p;
-    processNode->nextNode=NULL;
+//Add the process to the end of the queue
+void enqueue(struct Queue* q , struct process* p){
+    struct Node* processNode = Node_Constructor(p);
     if(isEmpty(q)){
         q->headPtr = processNode;
         q->tailPtr = processNode;
         return;
     }
-    q->tailPtr->nextNode = processNode;
+    q->tailPtr->nextNodePtr = processNode;
     q->tailPtr = processNode;
     return;
 }
 
-
-struct process* dequeue(struct queue* q){
+//Removes the process at the start of the queue and returns it
+//returns null if the queue is empty
+struct process* dequeue(struct Queue* q){
     if(isEmpty(q)){
         return NULL;
     }
-    struct node * tempNode = q->headPtr;
-    q->headPtr = q->headPtr->nextNode;
+    struct Node * tempNode = q->headPtr;
+    q->headPtr = q->headPtr->nextNodePtr;
     if(q->headPtr==NULL){
         q->tailPtr = NULL ;
     }
-    struct process* tempProcess = tempNode->process;
-    free(tempNode);
+    struct process* tempProcess = tempNode->processObj;
+    Node_Destructor(tempNode);
     return tempProcess;
 }
 
+//return the process at the start of the queue without removing it from the queue
+struct process* peekFront(struct Queue* q){
+    if(isEmpty(q)){
+        return NULL;
+    }
+    return q->headPtr->processObj;
+}
 
+//Frees the memory allocated by the Queue constructor
+void Queue_Destructor(struct Queue* q){
+    while(!isEmpty(q)){
+        dequeue(q);
+    }
+    free(q);
+}
+void print_Queue(struct Queue*q){
+    // printf("CAAAAAAAAAAAAAAAAAMEEEEEE\n");
+    struct Node*cur_ptr=q->headPtr;
+    // printf("CAAAAAAAAAAAAAAAAAMEEEEEE\n");
+    while(cur_ptr!=NULL){
+        printf("%d ",cur_ptr->processObj->id);
+        cur_ptr=cur_ptr->nextNodePtr;
+    }
+    printf("\n");
+}
