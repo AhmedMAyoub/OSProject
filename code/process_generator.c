@@ -6,7 +6,7 @@ int processCount = 0;
 int clockPId;
 int schedulerPId;
 int currTime = 0;
-int prevTime = -1;
+int prevTime = 0;
 
 void clearResources(int);
 void readInputFile(FILE *fp, char *fileName, struct process *processes);
@@ -101,9 +101,9 @@ int main(int argc, char *argv[])
                             send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
                             processesSent++;
                         }
-                        processToSend.p.id = -1;
-                        send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
                     }
+                    processToSend.p.id = -1;
+                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
                 }
             }
 
