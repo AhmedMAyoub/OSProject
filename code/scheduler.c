@@ -1,4 +1,4 @@
-#include "headers.h"
+#include "queue.h"
 
 int algoChoice = 0;
 int quantum = 0;
@@ -7,6 +7,7 @@ int processCount = 0;
 int main(int argc, char *argv[])
 {
     initClk();
+    struct Queue *processQueue = Queue_Constructor();
     struct msgBuffProcesses processToReceive;
     algoChoice = atoi(argv[1]);
     quantum = atoi(argv[2]);
@@ -27,7 +28,8 @@ int main(int argc, char *argv[])
         printf("Message Queue inside sched ID = %d\n", msgQSched_id);
     }
     int receivedP = 0;
-    processToReceive.processtype=1;
+    processToReceive.processtype = 1;
+    struct process *p;
     while (1)
     {
         printf("time is %d\n", getClk());
@@ -44,12 +46,29 @@ int main(int argc, char *argv[])
         //         receivedP++;
         //     }
         // }
+
         rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
-        if (processToReceive.p.id == -1) {
-            break;
-        }
         printf("processRec with id %d\n", processToReceive.p.id);
         printf("processRec with arrTime %d\n", processToReceive.p.arrTime);
+        if (processToReceive.p.id == -1)
+        {
+            break;
+        }
+        else
+        {
+            enqueue(processQueue, &processToReceive.p);
+            struct process *p = peekFront(processQueue);
+            printf("Front pid is %d\n", p->id);
+        }
+    }
+    for (int i = 0; i < processCount-1; i++)
+    {
+        p = dequeue(processQueue);
+        printf("Dequeqing pid is %d\n", p->id);
+    }
+    if (isEmpty(processQueue))
+    {
+        printf("queue is now empty\n");
     }
     printf("rec Done scheduler \n");
     // destroyClk(true);

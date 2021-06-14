@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     FILE *fp;
     char *fileName = argv[1];
     countProcesses(fp, fileName);
-    struct process processesArr[processCount];
+    struct process *processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     readInputFile(fp, fileName, processesArr);
     printf("Process Count %d\n", processCount);
     // 2. Read the chosen scheduling algorithm and its parameters, if there are any from the argument list.
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         schedulerPId = fork();
         if (schedulerPId == 0) // code if i am the scheduler child
         {
-            char *pCount;
+            char pCount[20];
             sprintf(pCount, "%d", processCount);
             char *args[] = {"./scheduler.out", schedAlgo, algoParams, pCount, NULL}; // using this to initialize scheduelr.c
             printf("initializing scheduler\n");
@@ -84,17 +84,20 @@ int main(int argc, char *argv[])
             int processesSent = 0;
             while (1)
             {
-                while (processesArr[processesSent].arrTime == getClk())
+                if (processesArr[processesSent].arrTime == getClk())
                 {
-                    processToSend.p = processesArr[processesSent];
-                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
-                    processesSent++;
-                }
-                if (processesSent == processCount)
-                {
-                    processToSend.p.id = -1;
-                    send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
-                    break;
+                    while (processesArr[processesSent].arrTime == getClk() )
+                    {
+                        processToSend.p = processesArr[processesSent];
+                        send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                        processesSent++;
+                    }
+                    if (processesSent == processCount)
+                    {
+                        processToSend.p.id = -1;
+                        send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                        break;
+                    }
                 }
             }
             printf("sending done\n");
