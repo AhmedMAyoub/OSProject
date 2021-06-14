@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     struct process *p;
     while (1)
     {
-        if (receivedP == processCount)
+        if (receivedP == processCount)  //will be changed once we implement algorithms
         {
             break;
         }
