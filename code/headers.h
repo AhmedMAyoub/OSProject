@@ -72,3 +72,9 @@ struct process
     int priority;
     char status[50];
 };
+
+struct msgBuffProcesses
+{
+    long processtype;
+    struct process p;
+};
