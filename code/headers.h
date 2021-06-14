@@ -73,6 +73,7 @@ struct process
     char status[50];
     int startTime;
     int finishTime;
+    bool isForked;
 };
 
 struct msgBuffProcesses
