@@ -78,9 +78,6 @@ int main(int argc, char *argv[])
             int processNum = 0;
             int stat_locSched;
             int schPId = 0;
-            struct msgBuffProcesses processToSend;
-            processToSend.processtype = 1;
-            processToSend.p = processesArr[0];
             int send_val;
             int processesSent = 0;
             while (1)
@@ -92,6 +89,8 @@ int main(int argc, char *argv[])
                 currTime = getClk();
                 if (currTime != prevTime)
                 {
+                    struct msgBuffProcesses processToSend;
+                    processToSend.processtype = 1;
                     prevTime = currTime;
                     if (processesArr[processesSent].arrTime == getClk() && processesSent < processCount)
                     {
@@ -106,7 +105,6 @@ int main(int argc, char *argv[])
                     send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
                 }
             }
-
             printf("sending done\n");
             schPId = waitpid(schedulerPId, &stat_locSched, 0);
             if (!(stat_locSched & 0x00FF))
@@ -114,6 +112,7 @@ int main(int argc, char *argv[])
                 //Scheduler finished and terminated with exit code
                 printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched >> 8);
                 msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
+                raise(SIGKILL);
                 destroyClk(true);
             }
         }

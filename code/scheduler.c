@@ -9,8 +9,8 @@ int prevTime = 0;
 int main(int argc, char *argv[])
 {
     initClk();
-    // struct Queue *readyQueue = Queue_Constructor();
-    struct msgBuffProcesses processToReceive;
+    struct Queue *readyQueue = Queue_Constructor();
+    struct process *processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     algoChoice = atoi(argv[1]);
     quantum = atoi(argv[2]);
     processCount = atoi(argv[3]);
@@ -30,34 +30,42 @@ int main(int argc, char *argv[])
         printf("Message Queue inside sched ID = %d\n", msgQSched_id);
     }
     int receivedP = 0;
-    processToReceive.processtype = 1;
-    struct process *p;
     while (1)
     {
-        if (receivedP == processCount)  //will be changed once we implement algorithms
-        {
-            break;
-        }
         currTime = getClk();
         if (currTime != prevTime)
         {
+            if (receivedP == processCount) //will be changed once we implement algorithms
+            {
+                break;
+            }
             printf("time is %d\n", currTime);
             prevTime = currTime;
             while (1)
             {
+                struct process *p;
+                struct msgBuffProcesses processToReceive;
+                processToReceive.processtype = 1;
                 rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+                printf("processRec with id %d\n", processToReceive.p.id);
                 if (processToReceive.p.id == -1)
                 {
                     break;
                 }
                 else
                 {
-                    printf("processRec with id %d\n", processToReceive.p.id);
-                    printf("processRec with arrTime %d\n", processToReceive.p.arrTime);
+                    processesArr[receivedP] = processToReceive.p;
+                    enqueue(readyQueue, &processesArr[receivedP]);
                     receivedP++;
                 }
             }
         }
+    }
+    struct process *p;
+    for (int i = 0; i < processCount; i++)
+    {
+        p = dequeue(readyQueue);
+        printf("process Deq with id %d\n", p->id);
     }
     // for (int i = 0; i < processCount - 1; i++)
     // {
@@ -69,8 +77,9 @@ int main(int argc, char *argv[])
     //     printf("queue is now empty\n");
     // }
     printf("rec Done scheduler \n");
-    // destroyClk(true);
+    destroyClk(true);
     exit(0);
+    raise(SIGKILL);
     //TODO: implement the scheduler.
     //TODO: upon termination release the clock resources.
 }
