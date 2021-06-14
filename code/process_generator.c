@@ -5,7 +5,8 @@
 int processCount = 0;
 int clockPId;
 int schedulerPId;
-int currTime;
+int currTime = 0;
+int prevTime = -1;
 
 void clearResources(int);
 void readInputFile(FILE *fp, char *fileName, struct process *processes);
@@ -84,22 +85,28 @@ int main(int argc, char *argv[])
             int processesSent = 0;
             while (1)
             {
-                if (processesArr[processesSent].arrTime == getClk())
+                if (processesSent == processCount)
                 {
-                    while (processesArr[processesSent].arrTime == getClk() )
+                    break;
+                }
+                currTime = getClk();
+                if (currTime != prevTime)
+                {
+                    prevTime = currTime;
+                    if (processesArr[processesSent].arrTime == getClk() && processesSent < processCount)
                     {
-                        processToSend.p = processesArr[processesSent];
-                        send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
-                        processesSent++;
-                    }
-                    if (processesSent == processCount)
-                    {
+                        while (processesArr[processesSent].arrTime == getClk() && processesSent < processCount)
+                        {
+                            processToSend.p = processesArr[processesSent];
+                            send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
+                            processesSent++;
+                        }
                         processToSend.p.id = -1;
                         send_val = msgsnd(msgQSched_id, &processToSend, sizeof(processToSend.p), IPC_NOWAIT);
-                        break;
                     }
                 }
             }
+
             printf("sending done\n");
             schPId = waitpid(schedulerPId, &stat_locSched, 0);
             if (!(stat_locSched & 0x00FF))
