@@ -4,7 +4,7 @@ int algoChoice = 0;
 int quantum = 0;
 int processCount = 0;
 int currTime = 0;
-int prevTime = -1;
+int prevTime = 0;
 
 int main(int argc, char *argv[])
 {
