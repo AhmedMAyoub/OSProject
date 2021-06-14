@@ -1,45 +1,54 @@
 #include "queue.h"
+#include <string.h>
 
 int algoChoice = 0;
 int quantum = 0;
 int processCount = 0;
 int currTime = 0;
 int prevTime = 0;
-key_t msgQScheduler;
-int rec_val, msgQSched_id;
+bool isFinished = true;
+int totalProcessesDone = 0;
 
-void runHPF();
-// void FCFS(struct process* CurrProcess){
-//     int CurrClock = getClk(); //get current time when process enters
-//     printf("Curren time upon entering %d\n", CurrClock);
-//     strcpy(CurrProcess->status, "running"); //setting status of process to running
-//     int FinishTime = CurrClock + CurrProcess->runTime; //calculating when process should be finished
-//     printf("current process is %d and finish time is %d\n", CurrProcess->id, FinishTime);
-//     int prevTime = getClk();
-//     CurrProcess->startTime = getClk(); //set start time for process
-//     while(true){
-//         if(getClk != prevTime){
-//             printf("Current time is %d\n", getClk());
-//             prevTime = getClk;
-//         }
-//         if(getClk() == FinishTime){
-//             printf("process %d is finished\n", CurrProcess->id);
-//             strcpy(CurrProcess->status,"finished");
-//             break;
-//         }
-//     }
-//     CurrProcess->finishTime = getClk(); //set finish time for process
-// }
-
-int main(int argc, char *argv[])
+void FCFS(struct process *CurrProcess)
 {
-    initClk();
-    quantum = atoi(argv[2]);
-    processCount = atoi(argv[3]);
-    algoChoice = atoi(argv[1]);
-    printf("gowa scheduler algo choice is %d\n", algoChoice);
-    printf("gowa scheduler quantum is %d\n", quantum);
-    printf("gowa scheduler pCount is %d\n", processCount);
+    isFinished = false;
+    int Processpid = fork();
+    if (Processpid == 0)
+    {
+        Processpid = getpid();
+        int CurrClock = getClk(); //get current time when process enters
+        printf("Current time upon entering %d\n", CurrClock);
+        strcpy(CurrProcess->status, "running");            //setting status of process to running
+        int FinishTime = CurrClock + CurrProcess->runTime; //calculating when process should be finished
+        printf("current process is %d and finish time is %d\n", CurrProcess->id, FinishTime);
+        CurrProcess->startTime = getClk(); //set start time for process
+        CurrProcess->finishTime = FinishTime;
+        CurrProcess->remainingTime = CurrProcess->runTime;
+        char start[20];
+        sprintf(start, "%d", CurrProcess->startTime);
+        char remaining[20];
+        sprintf(remaining, "%d", CurrProcess->remainingTime);
+        char finish[20];
+        sprintf(finish, "%d", CurrProcess->finishTime);
+        char id[20];
+        sprintf(id, "%d", CurrProcess->id);
+        char *args[] = {"./process.out", start, remaining, finish, id, NULL};
+        printf("initializing process with id %d\n", CurrProcess->id);
+        execvp(args[0], args);
+    }
+    else
+    {
+
+        return;
+    }
+}
+
+void ReceivingLoopFCFS()
+{
+    struct Queue *readyQueue = Queue_Constructor();
+    struct process *processesArr = (struct process *)malloc(processCount * sizeof(struct process));
+    key_t msgQScheduler;
+    int rec_val, msgQSched_id;
     msgQScheduler = ftok("keyfile.txt", 33); // create unique key
     msgQSched_id = msgget(msgQScheduler, 0666 | IPC_CREAT);
     if (msgQSched_id == -1)
@@ -50,43 +59,6 @@ int main(int argc, char *argv[])
     {
         printf("Message Queue inside sched ID = %d\n", msgQSched_id);
     }
-    if (algoChoice == 1)
-    {
-        //do FCFS
-    }
-    else if (algoChoice == 2)
-    {
-        // do SJF
-    }
-    else if (algoChoice == 3)
-    {
-        runHPF();
-    }
-    else if (algoChoice == 4)
-    {
-        // do SRTN
-    }
-    else if (algoChoice == 5)
-    {
-        // do RR
-    }
-    else
-    {
-        printf("Error no algorithm with this number\n");
-        return 0;
-    }
-    printf("rec Done scheduler \n");
-    destroyClk(true);
-    exit(0);
-    raise(SIGKILL);
-    //TODO: implement the scheduler.
-    //TODO: upon termination release the clock resources.
-}
-
-void runHPF()
-{
-    struct process *processesArr = (struct process *)malloc(processCount * sizeof(struct process));
-    struct Queue *readyQueue = Queue_Constructor();
     int receivedP = 0;
     while (1)
     {
@@ -105,7 +77,8 @@ void runHPF()
                 struct msgBuffProcesses processToReceive;
                 processToReceive.processtype = 1;
                 rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
-                printf("processRec with id %d\n", processToReceive.p.id);
+                int printTime = getClk();
+                printf("processRec with id %d received at %d\n", processToReceive.p.id, printTime);
                 if (processToReceive.p.id == -1)
                 {
                     break;
@@ -118,11 +91,52 @@ void runHPF()
                 }
             }
         }
+        if (!isEmpty(readyQueue) && isFinished)
+        {
+            FCFS(dequeue(readyQueue));
+        }
     }
-    struct process *p;
-    for (int i = 0; i < processCount; i++)
+    while (totalProcessesDone != processCount)
     {
-        p = dequeue(readyQueue);
-        printf("process Deq with id %d\n", p->id);
+        if (isFinished && !(isEmpty(readyQueue)))
+        {
+            //printf("total %d\n", totalProcessesDone);
+            FCFS(dequeue(readyQueue));
+            //print_Queue(readyQueue);
+        }
     }
+}
+
+//First come first serve algorithm
+
+void handleProcessFinish()
+{
+    printf("inside handler\n");
+    isFinished = true;
+    totalProcessesDone = totalProcessesDone + 1;
+}
+
+int main(int argc, char *argv[])
+{
+    initClk();
+    signal(SIGUSR1, handleProcessFinish);
+    algoChoice = atoi(argv[1]);
+    quantum = atoi(argv[2]);
+    processCount = atoi(argv[3]);
+    printf("gowa scheduler algo choice is %d\n", algoChoice);
+    printf("gowa scheduler quantum is %d\n", quantum);
+    printf("gowa scheduler pCount is %d\n", processCount);
+    switch(algoChoice){
+        case 1:
+            ReceivingLoopFCFS();
+            break;
+            case 2:
+            
+    }
+    printf("rec Done scheduler Algorithm 1 \n");
+    destroyClk(true);
+    exit(0);
+    raise(SIGKILL);
+    //TODO: implement the scheduler.
+    //TODO: upon termination release the clock resources.
 }
