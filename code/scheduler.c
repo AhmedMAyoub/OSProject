@@ -6,6 +6,28 @@ int processCount = 0;
 int currTime = 0;
 int prevTime = 0;
 
+void FCFS(struct process* CurrProcess){
+    int CurrClock = getClk(); //get current time when process enters
+    printf("Curren time upon entering %d\n", CurrClock);
+    strcpy(CurrProcess->status, "running"); //setting status of process to running
+    int FinishTime = CurrClock + CurrProcess->runTime; //calculating when process should be finished
+    printf("current process is %d and finish time is %d\n", CurrProcess->id, FinishTime);
+    int prevTime = getClk();
+    CurrProcess->startTime = getClk(); //set start time for process
+    while(true){
+        if(getClk != prevTime){
+            printf("Current time is %d\n", getClk());
+            prevTime = getClk;
+        }
+        if(getClk() == FinishTime){
+            printf("process %d is finished\n", CurrProcess->id);
+            strcpy(CurrProcess->status,"finished");
+            break;
+        }
+    }
+    CurrProcess->finishTime = getClk(); //set finish time for process
+}
+
 int main(int argc, char *argv[])
 {
     initClk();

@@ -71,6 +71,8 @@ struct process
     int remainingTime;
     int priority;
     char status[50];
+    int startTime;
+    int finishTime;
 };
 
 struct msgBuffProcesses
