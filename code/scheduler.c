@@ -205,6 +205,7 @@ void HPF()
             pop(&priorityQHead);
             if (currProcess->isForked == true) // if chosen process was forked before ---> resume
             {
+                kill(currProcess->pid, SIGCONT);
                 setContinue();
             }
             else // if chosen process was not forked forked before ---> fork and set its initial state
@@ -238,8 +239,7 @@ void HPF()
             if (temp->priority < currProcess->priority)
             {
                 printf("Found more prio\n");
-                kill(currProcess->pid, SIGKILL);
-                currProcess->isForked = false;
+                kill(currProcess->pid, SIGSTOP);
                 printf("currRemainingTime is %d\n", currProcess->remainingTime);
                 push(&priorityQHead, currProcess, currProcess->priority);
                 setPause();
@@ -276,13 +276,11 @@ void receiveInitialHPF()
             processesArr[receivedP] = processToReceive.p;
             if (priorityQHead == NULL)
             {
-                printf("ha3ml enqueue using new node \n");
                 priorityQHead = newNode(&processesArr[receivedP], processesArr[receivedP].priority);
                 receivedP++;
             }
             else
             {
-                printf("ha3ml enqueue using push\n");
                 push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].priority);
                 receivedP++;
             }
@@ -339,5 +337,4 @@ void setPause() {
     sprintf(currProcess->status, "%s", st);
     printf("currProc status %s\n", currProcess->status);
     currProcess->lastStopTime = getClk();
-    currProcess->remainingTime = getClk() - currProcess->lastStartTime;
 }
