@@ -76,6 +76,13 @@ struct process
     int startTime;
     int finishTime;
     bool isForked;
+    int state;
+    int resume;
+    int stopTime;
+    int totalwaitTime;
+    int pid;
+    int turnaround;
+    float wta;
 };
 
 struct msgBuffProcesses
@@ -83,4 +90,9 @@ struct msgBuffProcesses
     long processtype;
     struct process p;
 };
+int*sharedMemory;
+void shMemory(int data)
+{
+    (*sharedMemory)=data;
+}
 #endif

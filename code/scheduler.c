@@ -17,7 +17,9 @@ struct Queue *readyQueue;
 struct pnode *priorityQHead = NULL;
 struct pnode *currNode = NULL;
 struct msgBuffProcesses processToReceive;
-struct process *processesArr;
+struct process *processInRun;
+struct process *processesArr; 
+FILE* outputFile;
 
 void receiveInitialHPF();
 
@@ -118,6 +120,141 @@ void handleProcessFinish()
 
 void HPF();
 
+
+////////////////
+///RoundRobin///
+////////////////
+void sigRR(int);
+int stat_loc;
+struct Queue*readyQueue ;
+struct Queue*finishedQueue;
+int flag=0;
+int check=-1;
+void RoundRobin(int numOfProcesses,int quant){
+    //initzalling of the outputfile
+    outputFile=fopen("scheduler.log","w");
+    fprintf(outputFile,"#At time x process y state arr w total z remain y wait k\n");
+    processCount=numOfProcesses;
+    signal(SIGCHLD,sigRR);
+    readyQueue=Queue_Constructor();
+    finishedQueue=Queue_Constructor();
+    processInRun->state=-1;
+    while(processCount>0)
+    {
+        int recval=msgrcv(msgQSched_id,&processToReceive,sizeof(processToReceive.p),0, IPC_NOWAIT | MSG_NOERROR);
+        if(recval != -1)
+        {
+            if(!(processToReceive.p.id = check)){
+                check=processToReceive.p.id;
+                processToReceive.p.remainingTime=processToReceive.p.runTime;
+                processToReceive.p.state=0;
+                processToReceive.p.waitTime=0;
+                fprintf(outputFile,"At time %d process %d arrived arr %d total %d remain %d wait %d\n",getClk(),processToReceive.p.id,processToReceive.p.arrTime,processToReceive.p.runTime,processToReceive.p.runTime,0);
+                enqueue(readyQueue,&processToReceive.p);
+            }
+        }
+        if(processInRun->state==-1)
+        {
+            if(readyQueue->headPtr != NULL)
+            {
+                if(readyQueue->headPtr->processObj->state==2)
+                {
+                    processInRun=readyQueue->headPtr->processObj;
+                    processInRun->state=1;
+                    dequeue(readyQueue);
+                    processInRun->resume-getClk();
+                    processInRun->waitTime += (getClk()- processInRun->stopTime);
+                    processInRun->totalwaitTime+=processInRun->waitTime;
+                    fprintf(outputFile,"At time %d process %d resumed arr %d total %d remain %d wait %d\n",getClk,processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
+                    shMemory(processInRun->waitTime);
+                    kill(processInRun->pid,SIGCONT);
+                }else if(readyQueue->headPtr->processObj->state==0)
+                {
+                    processInRun=readyQueue->headPtr->processObj;
+                    processInRun->state=1;
+                    processInRun->startTime=getClk();
+                    processInRun->totalwaitTime=processInRun->startTime - processInRun->arrTime;
+                    fprintf(outputFile,"At time %d process %d started arr %d total %d remain %d wait %d\n",getClk(),processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
+                    shMemory(0);
+                    int pid=fork();
+                    if (pid==0)
+                    {
+                        
+                    }
+                    processInRun->pid=pid;
+                    dequeue(readyQueue);
+                }
+            }
+        }
+        else if(processInRun->state ==1 )
+        {
+            if(getClk()-processInRun->resume >= quant)
+            {
+                if(readyQueue->headPtr!=NULL)
+                {
+                    kill(processInRun->pid,SIGSTOP);
+                    processInRun->state=2;
+                    processInRun->stopTime=getClk();
+                    processInRun->remainingTime=processInRun->remainingTime - quant;
+                    fprintf(outputFile,"At time %d process %d stopped arr %d total %d remain %d wait %d\n",getClk(),processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
+                    enqueue(readyQueue,processInRun);
+                    if(readyQueue->headPtr->processObj->state==2)
+                    {
+                        processInRun=readyQueue->headPtr->processObj;
+                        processInRun->state=1;
+                        dequeue(readyQueue);
+                        processInRun->resume=getClk();
+                        processInRun->waitTime+=(getClk()-processInRun->stopTime);
+                        processInRun->totalwaitTime += processInRun->waitTime;
+                        kill(processInRun->pid,SIGCONT);
+                    }
+                    else if(readyQueue->headPtr->processObj->state == 0)
+                    {
+                        processInRun=readyQueue->headPtr->processObj;
+                        processInRun->state=1;
+                        processInRun->startTime=getClk();
+                        processInRun->totalwaitTime=processInRun->startTime-processInRun->arrTime;
+                        fprintf(outputFile,"At time %d process %d started arr %d total %d remain %d wait %d\n",getClk(),processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
+                        shMemory(0);
+                        dequeue(readyQueue);
+                    }
+                }
+                else
+                {
+                    processInRun->resume=getClk();
+                    processInRun->remainingTime=processInRun->remainingTime-quant;
+                }
+            }
+        }
+
+    }
+
+}
+void sigRR(int signal)
+{
+    if(waitpid(-1,&stat_loc,WNOHANG))
+    {
+        if (WIFEXITED(stat_loc))
+        {
+            processInRun->finishTime = WEXITSTATUS(stat_loc);
+            processInRun->turnaround = processInRun->finishTime - processInRun->arrTime;
+            processInRun->totalwaitTime = processInRun->finishTime-processInRun->runTime - processInRun->arrTime;
+            processInRun->wta = (float)processInRun->turnaround / (float)processInRun->runTime;
+            processInRun->remainingTime = 0;
+            processInRun->state = -1; 
+            fprintf(outputFile,"At time %d process %d finished arr %d  remain %d wait %d ",processInRun->finishTime,processInRun->id,processInRun->arrTime,processInRun->remainingTime,processInRun->waitTime);
+            fflush(stdout);   
+            fprintf(outputFile,"TA %d WTA %0.2f \n",processInRun->turnaround,processInRun->wta);
+            fflush(stdout);          
+            enqueue(finishedQueue,processInRun);
+            processCount--;                 
+            flag =0; 
+
+        }
+
+    }       
+}
+
 int main(int argc, char *argv[])
 {
     initClk();
@@ -156,7 +293,7 @@ int main(int argc, char *argv[])
         // do SRTN
         break;
     case 5:
-        // do RR
+        RoundRobin(processCount,quantum);
         break;
     }
     printf("rec Done scheduler Algorithm 1 \n");
