@@ -1,16 +1,20 @@
 #include <string.h>
+#include <math.h>>
+#include <stdio.h>
 #include "queue.h"
 #include "priorityQueue.h"
 #include <math.h>
 
 int algoChoice = 0;
 int quantum = 0;
+int iwrite = 0;
 int processCount = 0;
 int currTime = 0;
 int prevTime = 0;
 bool isFinished = true;
 int totalProcessesDone = 0;
 int receivedP = 0;
+int ihandler = 0;
 int rec_val, msgQSched_id;
 struct process *currProcess = NULL;
 void *shmaddr1;
@@ -25,10 +29,14 @@ key_t msgQScheduler;
 struct Queue *readyQueue;
 struct pnode *priorityQHead = NULL;
 struct pnode *currNode = NULL;
+struct process *CurrProcess;
 struct msgBuffProcesses processToReceive;
 struct process *processesArr;
+struct process *forkedProcesses;
+FILE *fp;
 
 void receiveInitialHPF();
+void SJFProcess(struct process *CurrProcess);
 void receiveHPF();
 void setContinue();
 void setProcessStart(int pid);
@@ -39,9 +47,11 @@ void receiveInitialSRTN();
 void receiveSRTN();
 void writePerf();
 
+
+//write to output file "results.txt"
 void WriteFile(struct process *currProcess, int state)
 {
-    fp = fopen("./scheduler.log", "a");
+    fp = fopen("./results.txt", "a");
     if (iwrite == 0)
     {
         fprintf(fp, "At  time  x  process  y  state  arr  w  total  z  remain  y  wait  k\n");
@@ -49,7 +59,7 @@ void WriteFile(struct process *currProcess, int state)
     }
     if (state == 1)
     {
-        printf("byeegi start?\n");
+        printf("byeegi hena?\n");
         fprintf(fp, "At  time  %d  process  %d  %s  arr  %d  total  %d  remain %d  wait  %d\n", getClk(), currProcess->id, currProcess->status, currProcess->arrTime, currProcess->totalTime, currProcess->remainingTime, currProcess->waitTime);
     }
     else if (state == 2)
@@ -57,36 +67,43 @@ void WriteFile(struct process *currProcess, int state)
         printf("byeegi finish\n");
         int TA = currProcess->finishTime - currProcess->arrTime;
         int WTA = round(TA / currProcess->runTime);
-        avgWTA = avgWTA + WTA;
         fprintf(fp, "At  time  %d  process  %d  %s  arr  %d  total  %d  remain %d  wait  %d  TA  %d  WTA  %d\n", getClk(), currProcess->id, currProcess->status, currProcess->arrTime, currProcess->totalTime, currProcess->remainingTime, currProcess->waitTime, TA, WTA);
     }
     fclose(fp);
 }
 
-void FCFS(struct process *CurrProcess)
+//non-preemptive set start time
+void setStartTime(struct process *currProcess)
 {
+    currProcess->startTime = getClk();
+    currProcess->remainingTime = currProcess->runTime;
+    currProcess->waitTime = currProcess->startTime - currProcess->arrTime;   //setting wait time of process in system
+    currProcess->finishTime = currProcess->startTime + currProcess->runTime; //setting finish time of process
+    currProcess->totalTime = currProcess->waitTime + currProcess->runTime;
+    strcpy(currProcess->status, "running");
+    WriteFile(currProcess, 1);
+    //call write in file function
+}
+//non-preemptive set finish time
+void setFinishTime(struct process *currProcess)
+{
+    currProcess->remainingTime = 0;
+    strcpy(currProcess->status, "finished"); //setting status to finished
+    WriteFile(currProcess, 2);
+    //call write in file function
+}
+void FCFS(struct process *currProcess)
+{
+    CurrProcess = currProcess;
     isFinished = false;
+    setStartTime(CurrProcess); //set start time for process
     int Processpid = fork();
     if (Processpid == 0)
     {
         Processpid = getpid();
-        int CurrClock = getClk(); //get current time when process enters
-        printf("Current time upon entering %d\n", CurrClock);
-        strcpy(CurrProcess->status, "running");            //setting status of process to running
-        int FinishTime = CurrClock + CurrProcess->runTime; //calculating when process should be finished
-        printf("current process is %d and finish time is %d\n", CurrProcess->id, FinishTime);
-        CurrProcess->startTime = getClk(); //set start time for process
-        CurrProcess->finishTime = FinishTime;
-        CurrProcess->remainingTime = CurrProcess->runTime;
-        char start[20];
-        sprintf(start, "%d", CurrProcess->startTime);
         char remaining[20];
         sprintf(remaining, "%d", CurrProcess->remainingTime);
-        char finish[20];
-        sprintf(finish, "%d", CurrProcess->finishTime);
-        char id[20];
-        sprintf(id, "%d", CurrProcess->id);
-        char *args[] = {"./process.out", start, remaining, finish, id, NULL};
+        char *args[] = {"./process.out", remaining, NULL};
         printf("initializing process with id %d\n", CurrProcess->id);
         execvp(args[0], args);
     }
@@ -149,24 +166,18 @@ void ReceivingLoopFCFS()
     }
 }
 
-//First come first serve algorithm
+void SJF();
+void HPF();
 
 void handleProcessFinish()
 {
     printf("inside handler process\n");
     isFinished = true;
     totalProcessesDone = totalProcessesDone + 1;
-    currProcess->finished = true;
-    currProcess->finishTime = getClk();
-    currProcess->totalTime = currProcess->finishTime - currProcess->arrTime;
-    char st[25] = "finished";
-    sprintf(currProcess->status, "%s", st);
-    printf("Finished Process id is %d, arrTime is %d, finishTime is %d \n", currProcess->id, currProcess->arrTime, currProcess->finishTime);
-    currProcess->remainingTime = 0;
-    WriteFile(currProcess, 2);
-    avgWait = avgWait + currProcess->waitTime;
-    currProcess = NULL;
+    setFinishTime(CurrProcess);
+    ihandler++;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -194,7 +205,8 @@ int main(int argc, char *argv[])
         ReceivingLoopFCFS();
         break;
     case 2:
-        // do  SJF
+        printf("ehna sjf\n");
+        SJF();
         break;
     case 3:
         // do HPF
@@ -485,6 +497,91 @@ void receiveSRTN()
     }
 }
 
+void SJF()
+{
+    processesArr = (struct process *)malloc(processCount * sizeof(struct process));
+    while (1)
+    {
+        currTime = getClk();
+        if (currTime != prevTime)
+        {
+            if (receivedP == processCount) //will be changed once we implement algorithms
+            {
+                break;
+                printf("total %d\n", totalProcessesDone);
+            }
+            processToReceive.processtype = 1;
+            printf("time is %d\n", currTime);
+            prevTime = currTime;
+            while (true)
+            {
+                rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+                int printTime = getClk();
+                if (processToReceive.p.id == -1)
+                {
+                    break;
+                }
+                else
+                {
+                    printf("processRec with id %d received at %d\n", processToReceive.p.id, printTime);
+                    processesArr[receivedP] = processToReceive.p;
+                    if (priorityQHead == NULL)
+                    {
+                        priorityQHead = newNode(&processesArr[receivedP], processesArr[receivedP].runTime);
+                        receivedP++;
+                    }
+                    else
+                    {
+                        push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].runTime);
+                        receivedP++;
+                    }
+                }
+            }
+            struct process *sendP;
+            if (!PQisEmpty(&priorityQHead) && isFinished)
+            {
+                sendP = peek(&priorityQHead);
+                pop(&priorityQHead);
+                SJFProcess(sendP);
+            }
+        }
+    }
+    struct process *sendP;
+    while (totalProcessesDone != processCount)
+    {
+        if (!(priorityQHead == NULL) && isFinished)
+        {
+            sendP = peek(&priorityQHead);
+            printf("processes done %d\n", totalProcessesDone);
+            printf("id of p: %d\n", sendP->id);
+            pop(&priorityQHead);
+            SJFProcess(sendP);
+        }
+    }
+}
+
+void SJFProcess(struct process *currProcess)
+{
+    CurrProcess = currProcess;
+    isFinished = false;
+    setStartTime(CurrProcess); //set start time for process
+    int Processpid = fork();
+    if (Processpid == 0)
+    {
+        Processpid = getpid();
+        char remaining[20];
+        sprintf(remaining, "%d", CurrProcess->remainingTime);
+        char *args[] = {"./process.out", remaining, NULL};
+        printf("initializing process with id %d\n", CurrProcess->id);
+        execvp(args[0], args);
+    }
+    else
+    {
+        return;
+    }
+    return;
+}
+
 void setProcessStart(int pid)
 {
     currProcess->startTime = getClk();
@@ -524,3 +621,4 @@ void setPause()
 void writePerf() {
     printf("AVG WTA %d and avg wait %d\n", avgWTA, avgWait);
 }
+
