@@ -177,10 +177,15 @@ void RoundRobin(int numOfProcesses,int quant){
                     fprintf(outputFile,"At time %d process %d started arr %d total %d remain %d wait %d\n",getClk(),processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
                     shMemory(0);
                     int pid=fork();
-                    if (pid==0)
+                    if (pid == 0)
                     {
-                        
+                        char rem[4];
+                        sprintf(rem,"%d",processInRun->runTime);
+                        char* const p[] = {"./process.o",rem,NULL};
+                        execvp(p[0],p);
+
                     }
+
                     processInRun->pid=pid;
                     dequeue(readyQueue);
                 }
@@ -216,6 +221,15 @@ void RoundRobin(int numOfProcesses,int quant){
                         processInRun->totalwaitTime=processInRun->startTime-processInRun->arrTime;
                         fprintf(outputFile,"At time %d process %d started arr %d total %d remain %d wait %d\n",getClk(),processInRun->id,processInRun->arrTime,processInRun->runTime,processInRun->remainingTime,processInRun->totalwaitTime);
                         shMemory(0);
+                        int pid = fork(); 
+                        if (pid == 0)
+                        {
+                            char rem[4];
+                            sprintf(rem,"%d",processInRun->runTime);
+                            char* const p[] = {"./process.o",rem,NULL};
+                            execvp(p[0],p);
+
+                        }
                         dequeue(readyQueue);
                     }
                 }
