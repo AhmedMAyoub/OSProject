@@ -119,7 +119,6 @@ int main(int argc, char *argv[])
                 printf("\nA Scheduler with pid %d terminated with exit code %d\n", schPId, stat_locSched >> 8);
                 msgctl(msgQSched_id, IPC_RMID, (struct msqid_ds *)0);
             }
-            printf("DONE SENDING \n");
             destroyClk(true);
         }
     }

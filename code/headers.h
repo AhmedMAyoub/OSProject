@@ -76,6 +76,10 @@ struct process
     int startTime;
     int finishTime;
     bool isForked;
+    int pid;
+    int lastRunTime;
+    int lastStopTime;
+    bool finished;
 };
 
 struct msgBuffProcesses
