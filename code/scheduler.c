@@ -20,7 +20,6 @@ struct process *currProcess = NULL;
 void *shmaddr1;
 int shmid;
 FILE *fp;
-int iwrite = 0;
 int avgWTA;
 int avgWait;
 
