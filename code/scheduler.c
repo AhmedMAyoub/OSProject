@@ -17,6 +17,9 @@ void *shmaddr1;
 int shmid;
 FILE *fp;
 int iwrite = 0;
+int avgWTA;
+int avgWait;
+
 
 key_t msgQScheduler;
 struct Queue *readyQueue;
@@ -34,10 +37,11 @@ void HPF();
 void SRTN();
 void receiveInitialSRTN();
 void receiveSRTN();
+void writePerf();
 
 void WriteFile(struct process *currProcess, int state)
 {
-    fp = fopen("./results.txt", "a");
+    fp = fopen("./scheduler.log", "a");
     if (iwrite == 0)
     {
         fprintf(fp, "At  time  x  process  y  state  arr  w  total  z  remain  y  wait  k\n");
@@ -53,6 +57,7 @@ void WriteFile(struct process *currProcess, int state)
         printf("byeegi finish\n");
         int TA = currProcess->finishTime - currProcess->arrTime;
         int WTA = round(TA / currProcess->runTime);
+        avgWTA = avgWTA + WTA;
         fprintf(fp, "At  time  %d  process  %d  %s  arr  %d  total  %d  remain %d  wait  %d  TA  %d  WTA  %d\n", getClk(), currProcess->id, currProcess->status, currProcess->arrTime, currProcess->totalTime, currProcess->remainingTime, currProcess->waitTime, TA, WTA);
     }
     fclose(fp);
@@ -159,6 +164,7 @@ void handleProcessFinish()
     printf("Finished Process id is %d, arrTime is %d, finishTime is %d \n", currProcess->id, currProcess->arrTime, currProcess->finishTime);
     currProcess->remainingTime = 0;
     WriteFile(currProcess, 2);
+    avgWait = avgWait + currProcess->waitTime;
     currProcess = NULL;
 }
 
@@ -212,6 +218,8 @@ int main(int argc, char *argv[])
 
 void HPF()
 {
+    fp = fopen("./scheduler.log", "w");
+    fclose(fp);
     processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     receiveInitialHPF();
     struct process *temp;
@@ -294,10 +302,13 @@ void HPF()
             receiveHPF();
         }
     }
+    writePerf();
 }
 
 void SRTN()
 {
+    fp = fopen("./scheduler.log", "w");
+    fclose(fp);
     processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     receiveInitialSRTN();
     struct process *temp;
@@ -377,6 +388,7 @@ void SRTN()
             }
         }
     }
+    writePerf();
 }
 
 void receiveInitialHPF()
@@ -507,4 +519,8 @@ void setPause()
     printf("currProc status %s\n", currProcess->status);
     currProcess->lastStopTime = getClk();
     WriteFile(currProcess, 1);
+}
+
+void writePerf() {
+    printf("AVG WTA %d and avg wait %d\n", avgWTA, avgWait);
 }
