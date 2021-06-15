@@ -122,7 +122,10 @@ void handleProcessFinish()
     isFinished = true;
     totalProcessesDone = totalProcessesDone + 1;
     currProcess->finished = true;
-    printf("total processes DOne %d \n", totalProcessesDone);
+    currProcess->finishTime = getClk();
+    currProcess->totalTime = currProcess->finishTime - currProcess->arrTime;
+    printf("Finished Process id is %d, arrTime is %d, finishTime is %d \n", currProcess->id, currProcess->arrTime, currProcess->finishTime);
+    currProcess = NULL;
 }
 
 void HPF();
@@ -206,7 +209,6 @@ void HPF()
             }
             else // if chosen process was not forked forked before ---> fork and set its initial state
             {
-                setProcessStart(currProcessPId);
                 currProcessPId = fork();
                 if (currProcessPId == -1)
                 {
@@ -225,6 +227,9 @@ void HPF()
                     execvp(args[0], args);
                     exit(0);
                 }
+                else {
+                    setProcessStart(currProcessPId);
+                }
             }
         }
         else //there is a process already running
@@ -233,7 +238,8 @@ void HPF()
             if (temp->priority < currProcess->priority)
             {
                 printf("Found more prio\n");
-                kill(currProcess->pid, SIGSTOP);
+                kill(currProcess->pid, SIGKILL);
+                currProcess->isForked = false;
                 printf("currRemainingTime is %d\n", currProcess->remainingTime);
                 push(&priorityQHead, currProcess, currProcess->priority);
                 setPause();
@@ -313,17 +319,18 @@ void setProcessStart(int pid)
     currProcess->isForked = true;
     currProcess->pid = pid;
     currProcess->finished = false;
-    // set pid
+    currProcess->lastStartTime = getClk();
 }
 
 void setContinue()
 {
     printf("currProc resumed id %d\n", currProcess->id);
+    printf("currProc resumed remTime %d\n", currProcess->remainingTime);
     currProcess->waitTime = currProcess->waitTime + getClk() - currProcess->lastStopTime;
     char st[25] = "resumed";
     sprintf(currProcess->status, "%s", st);
     printf("currProc status %s\n", currProcess->status);
-    currProcess->lastRunTime = currProcess->runTime;
+    currProcess->lastStartTime = getClk();
 }
 
 void setPause() {
@@ -332,5 +339,5 @@ void setPause() {
     sprintf(currProcess->status, "%s", st);
     printf("currProc status %s\n", currProcess->status);
     currProcess->lastStopTime = getClk();
-    currProcess->lastRunTime = currProcess->runTime;
+    currProcess->remainingTime = getClk() - currProcess->lastStartTime;
 }

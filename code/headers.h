@@ -80,6 +80,7 @@ struct process
     int lastRunTime;
     int lastStopTime;
     bool finished;
+    int lastStartTime;
 };
 
 struct msgBuffProcesses

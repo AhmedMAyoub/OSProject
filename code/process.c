@@ -35,6 +35,7 @@ int main(int agrc, char *argv[])
         if(prevtime != currtime){
             remainingtime = remainingtime - 1;
             prevtime = getClk();
+            printf("process inside process with pid %d and start time %d and remainingtimeaining time %d\n", id, start,remainingtime);
         }
     }
     printf("process is finished\n");
@@ -60,5 +61,6 @@ void handlePauseProcess() {
     //     printf("\nProcess: Sending remaining time before pause %x\n", remainingtime);
     //     strcpy((int *)shmaddr1, remainingtime);
     // }
+    printf("Pausing child with pid %d\n", getpid());
     pause();
 }
