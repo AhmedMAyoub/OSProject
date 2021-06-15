@@ -6,16 +6,16 @@ int remainingtime;
 int main(int agrc, char *argv[])
 {
     initClk();
-    int start = atoi(argv[1]); //start time upon dequeuing from ready queue
-    int rem = atoi(argv[2]); //remaining time upone dequeuing from ready queue
-    int finish = atoi(argv[3]); //finish time 
-    int id = atoi(argv[4]); //id of proces
+    int rem = atoi(argv[1]); //remaining time upone dequeuing from ready queue
     //TODO The process needs to get the remaining time from somewhere
     int currtime;
-    printf("process with pid %d and start time %d and finish time %d and remaining time %d\n", id, start, finish, rem);
+    int prevtime = getClk();
     while (rem> 0){
         currtime = getClk();
-        rem = finish - currtime;
+        if(prevtime != currtime){
+            rem = rem - 1;
+            prevtime = getClk();
+        }
     }
     printf("process is finished\n");
     destroyClk(false);
