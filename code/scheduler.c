@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "queue.h"
 #include "priorityQueue.h"
+#include <math.h>
 
 int algoChoice = 0;
 int quantum = 0;
@@ -15,6 +16,14 @@ int totalProcessesDone = 0;
 int receivedP = 0;
 int ihandler = 0;
 int rec_val, msgQSched_id;
+struct process *currProcess = NULL;
+void *shmaddr1;
+int shmid;
+FILE *fp;
+int iwrite = 0;
+int avgWTA;
+int avgWait;
+
 
 key_t msgQScheduler;
 struct Queue *readyQueue;
@@ -28,6 +37,16 @@ FILE *fp;
 
 void receiveInitialHPF();
 void SJFProcess(struct process *CurrProcess);
+void receiveHPF();
+void setContinue();
+void setProcessStart(int pid);
+void setPause();
+void HPF();
+void SRTN();
+void receiveInitialSRTN();
+void receiveSRTN();
+void writePerf();
+
 
 //write to output file "results.txt"
 void WriteFile(struct process *currProcess, int state)
@@ -147,7 +166,8 @@ void ReceivingLoopFCFS()
     }
 }
 
-//First come first serve algorithm
+void SJF();
+void HPF();
 
 void handleProcessFinish()
 {
@@ -158,8 +178,6 @@ void handleProcessFinish()
     ihandler++;
 }
 
-void SJF();
-void HPF();
 
 int main(int argc, char *argv[])
 {
@@ -193,11 +211,11 @@ int main(int argc, char *argv[])
     case 3:
         // do HPF
         printf("Ehna HPF\n");
-
         HPF();
         break;
     case 4:
-        // do SRTN
+        printf("Ehna SRTN\n");
+        SRTN();
         break;
     case 5:
         // do RR
@@ -212,15 +230,177 @@ int main(int argc, char *argv[])
 
 void HPF()
 {
+    fp = fopen("./scheduler.log", "w");
+    fclose(fp);
     processesArr = (struct process *)malloc(processCount * sizeof(struct process));
     receiveInitialHPF();
-    printf("GOWA HPF\n");
-    // struct process* p;
-    // for (int i=0; i<5; i++){
-    //     printf("gowa loop \n");
-    //     p = peek(&priorityQHead);
-    //     pop(&priorityQHead);
+    struct process *temp;
+    int currProcessPId;
+    // shmid = shmget(IPC_PRIVATE, 4096, IPC_CREAT | 0644);
+    // if (shmid == -1)
+    // {
+    //     perror("Error in create");
+    //     exit(-1);
     // }
+    // else
+    // {
+    //     printf("\nShared memory ID = %d\n", shmid);
+    // }
+    while (totalProcessesDone != processCount) // not all processes finished yet
+    {
+        if (currProcess)
+        {
+            currProcess->remainingTime = currProcess->remainingTime - 1;
+        }
+        if (currProcess == NULL) // if no current running process take one from queue
+        {
+            currProcess = peek(&priorityQHead);
+            pop(&priorityQHead);
+            if (currProcess->isForked == true) // if chosen process was forked before ---> resume
+            {
+                kill(currProcess->pid, SIGCONT);
+                setContinue();
+            }
+            else // if chosen process was not forked forked before ---> fork and set its initial state
+            {
+                currProcessPId = fork();
+                if (currProcessPId == -1)
+                {
+                    perror("Error in fork!!");
+                }
+                else if (currProcessPId == 0) //inside process child
+                {
+                    printf("I am child with pid %d forking a new process with id %d\n", getpid(), currProcess->id);
+                    char rTime[20];
+                    sprintf(rTime, "%d", currProcess->runTime);
+                    char id[20];
+                    sprintf(id, "%d", currProcess->id);
+                    char st[20];
+                    sprintf(st, "%d", currProcess->startTime);
+                    char *args[] = {"./process.out", st, rTime, id, NULL}; // initializing process
+                    execvp(args[0], args);
+                    exit(0);
+                }
+                else
+                {
+                    setProcessStart(currProcessPId);
+                }
+            }
+        }
+        else //there is a process already running
+        {
+            temp = peek(&priorityQHead);
+            if (temp->priority < currProcess->priority)
+            {
+                printf("Found more prio\n");
+                kill(currProcess->pid, SIGSTOP);
+                printf("currRemainingTime is %d\n", currProcess->remainingTime);
+                push(&priorityQHead, currProcess, currProcess->priority);
+                setPause();
+                currProcess = NULL; // check if process at head has higher priority
+                // if higher then enqueue set curr process to null
+            } // dequeue it from prioQ
+            //////////////////////////////
+
+            // if lower continue running until next clock cycle
+        }
+        if (currProcess)
+        {
+            printf("Current process id is %d\n", currProcess->id);
+        }
+        if (receivedP != processCount)
+        {
+            printf("Current process count is %d\n", receivedP);
+            receiveHPF();
+        }
+    }
+    writePerf();
+}
+
+void SRTN()
+{
+    fp = fopen("./scheduler.log", "w");
+    fclose(fp);
+    processesArr = (struct process *)malloc(processCount * sizeof(struct process));
+    receiveInitialSRTN();
+    struct process *temp;
+    int currProcessPId;
+    while (totalProcessesDone <= processCount) // not all processes finished yet
+    {
+        if (getClk() != prevTime)
+        {
+            prevTime = getClk();
+            if (currProcess)
+            {
+                if (currProcess->remainingTime != 0)
+                {
+                    currProcess->remainingTime = currProcess->remainingTime - 1;
+                }
+            }
+            if (currProcess == NULL) // if no current running process take one from queue
+            {
+                currProcess = peek(&priorityQHead);
+                pop(&priorityQHead);
+                if (currProcess->isForked == true) // if chosen process was forked before ---> resume
+                {
+                    kill(currProcess->pid, SIGCONT);
+                    setContinue();
+                }
+                else // if chosen process was not forked forked before ---> fork and set its initial state
+                {
+                    currProcessPId = fork();
+                    if (currProcessPId == -1)
+                    {
+                        perror("Error in fork!!");
+                    }
+                    else if (currProcessPId == 0) //inside process child
+                    {
+                        printf("I am child with pid %d forking a new process with id %d\n", getpid(), currProcess->id);
+                        char rTime[20];
+                        sprintf(rTime, "%d", currProcess->runTime);
+                        char id[20];
+                        sprintf(id, "%d", currProcess->id);
+                        char st[20];
+                        sprintf(st, "%d", currProcess->startTime);
+                        char *args[] = {"./process.out", st, rTime, id, NULL}; // initializing process
+                        execvp(args[0], args);
+                        exit(0);
+                    }
+                    else
+                    {
+                        setProcessStart(currProcessPId);
+                    }
+                }
+            }
+            else //there is a process already running
+            {
+                temp = peek(&priorityQHead);
+                if (temp->remainingTime < currProcess->remainingTime)
+                {
+                    printf("Found more prio\n");
+                    kill(currProcess->pid, SIGSTOP);
+                    printf("currRemainingTime is %d\n", currProcess->remainingTime);
+                    push(&priorityQHead, currProcess, currProcess->remainingTime);
+                    setPause();
+                    currProcess = NULL; // check if process at head has higher priority
+                    // if higher then enqueue set curr process to null
+                } // dequeue it from prioQ
+                //////////////////////////////
+
+                // if lower continue running until next clock cycle
+            }
+            if (currProcess)
+            {
+                printf("Current process id is %d\n", currProcess->id);
+            }
+            if (receivedP != processCount)
+            {
+                printf("Current process count is %d\n", receivedP);
+                receiveSRTN();
+            }
+        }
+    }
+    writePerf();
 }
 
 void receiveInitialHPF()
@@ -237,25 +417,83 @@ void receiveInitialHPF()
             processesArr[receivedP] = processToReceive.p;
             if (priorityQHead == NULL)
             {
-                printf("ha3ml enqueue using new node \n");
                 priorityQHead = newNode(&processesArr[receivedP], processesArr[receivedP].priority);
                 receivedP++;
             }
             else
             {
-                printf("ha3ml enqueue using push\n");
                 push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].priority);
                 receivedP++;
             }
         }
     }
-    struct process *p;
-    for (int i = 0; i < 5; i++)
+}
+
+void receiveHPF()
+{
+    while (true)
     {
-        printf("gowa loop \n");
-        p = peek(&priorityQHead);
-        printf("ana awel priority %d \n", p->priority);
-        pop(&priorityQHead);
+        rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+        if (processToReceive.p.id == -1)
+        {
+            break;
+        }
+        else
+        {
+            processesArr[receivedP] = processToReceive.p;
+            push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].priority);
+            printf("enqueued %d\n", processesArr[receivedP].id);
+            receivedP++;
+        }
+    }
+}
+
+void receiveInitialSRTN()
+{
+    while (true)
+    {
+        rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+        if (processToReceive.p.id == -1)
+        {
+            break;
+        }
+        else
+        {
+            processesArr[receivedP] = processToReceive.p;
+            processesArr[receivedP].remainingTime = processesArr[receivedP].runTime;
+            processesArr[receivedP].totalTime = 0;
+            if (priorityQHead == NULL)
+            {
+                priorityQHead = newNode(&processesArr[receivedP], processesArr[receivedP].runTime);
+                receivedP++;
+            }
+            else
+            {
+                push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].runTime);
+                receivedP++;
+            }
+        }
+    }
+}
+
+void receiveSRTN()
+{
+    while (true)
+    {
+        rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+        if (processToReceive.p.id == -1)
+        {
+            break;
+        }
+        else
+        {
+            processesArr[receivedP] = processToReceive.p;
+            processesArr[receivedP].remainingTime = processesArr[receivedP].runTime;
+            processesArr[receivedP].totalTime = 0;
+            push(&priorityQHead, &processesArr[receivedP], processesArr[receivedP].runTime);
+            printf("enqueued %d\n", processesArr[receivedP].id);
+            receivedP++;
+        }
     }
 }
 
@@ -343,3 +581,44 @@ void SJFProcess(struct process *currProcess)
     }
     return;
 }
+
+void setProcessStart(int pid)
+{
+    currProcess->startTime = getClk();
+    currProcess->waitTime = getClk() - currProcess->arrTime;
+    char st[25] = "started";
+    sprintf(currProcess->status, "%s", st);
+    currProcess->remainingTime = currProcess->runTime;
+    currProcess->isForked = true;
+    currProcess->pid = pid;
+    currProcess->finished = false;
+    currProcess->lastStartTime = getClk();
+    WriteFile(currProcess, 1);
+}
+
+void setContinue()
+{
+    printf("currProc resumed id %d\n", currProcess->id);
+    printf("currProc resumed remTime %d\n", currProcess->remainingTime);
+    currProcess->waitTime = currProcess->waitTime + getClk() - currProcess->lastStopTime;
+    char st[25] = "resumed";
+    sprintf(currProcess->status, "%s", st);
+    printf("currProc status %s\n", currProcess->status);
+    currProcess->lastStartTime = getClk();
+    WriteFile(currProcess, 1);
+}
+
+void setPause()
+{
+    printf("currProc Paused id %d\n", currProcess->id);
+    char st[25] = "stopped";
+    sprintf(currProcess->status, "%s", st);
+    printf("currProc status %s\n", currProcess->status);
+    currProcess->lastStopTime = getClk();
+    WriteFile(currProcess, 1);
+}
+
+void writePerf() {
+    printf("AVG WTA %d and avg wait %d\n", avgWTA, avgWait);
+}
+
