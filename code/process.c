@@ -7,6 +7,7 @@ int main(int agrc, char *argv[])
 {
     initClk();
     int rem = atoi(argv[1]); //remaining time upone dequeuing from ready queue
+    int q = atoi(argv[2]);
     //TODO The process needs to get the remaining time from somewhere
     int currtime;
     int prevtime = getClk();

@@ -27,7 +27,9 @@ struct process *forkedProcesses;
 FILE *fp;
 
 void receiveInitialHPF();
-void SJFProcess(struct process *CurrProcess);
+void SJFProcess(struct process *currProcess);
+void RR();
+void RRProcess(struct process *currProcess);
 
 //write to output file "results.txt"
 void WriteFile(struct process *currProcess, int state)
@@ -200,7 +202,7 @@ int main(int argc, char *argv[])
         // do SRTN
         break;
     case 5:
-        // do RR
+        RR();
         break;
     }
     printf("rec Done scheduler Algorithm 1 \n");
@@ -342,4 +344,89 @@ void SJFProcess(struct process *currProcess)
         return;
     }
     return;
+}
+
+void RR()
+{
+    readyQueue = Queue_Constructor();
+    processesArr = (struct process *)malloc(processCount * sizeof(struct process));
+    while (1)
+    {
+        currTime = getClk();
+        if (currTime != prevTime)
+        {
+            if (receivedP == processCount) //will be changed once we implement algorithms
+            {
+                break;
+                printf("total %d\n", totalProcessesDone);
+            }
+            processToReceive.processtype = 1;
+            printf("time is %d\n", currTime);
+            prevTime = currTime;
+            while (1)
+            {
+                rec_val = msgrcv(msgQSched_id, &processToReceive, sizeof(processToReceive.p), 0, !IPC_NOWAIT);
+                int printTime = getClk();
+                if (processToReceive.p.id == -1)
+                {
+                    break;
+                }
+                else
+                {
+                    printf("processRec with id %d received at %d\n", processToReceive.p.id, printTime);
+                    processesArr[receivedP] = processToReceive.p;
+                    enqueue(readyQueue, &processesArr[receivedP]);
+                    receivedP++;
+                }
+            }
+        }
+        if (!isEmpty(readyQueue) && isFinished)
+        {
+            RRProcess(dequeue(readyQueue));
+        }
+    }
+    printf("total %d\n", totalProcessesDone);
+    print_Queue(readyQueue);
+    while (totalProcessesDone != processCount)
+    {
+        if (isFinished && !(isEmpty(readyQueue)))
+        {
+            // printf("total %d\n", totalProcessesDone);
+            FCFS(dequeue(readyQueue));
+            //  print_Queue(readyQueue);
+        }
+    }
+}
+
+void RRProcess(struct process *currProcess)
+{
+    CurrProcess = currProcess;
+    isFinished = false;
+    setStartTime(CurrProcess); //set start time for process
+    CurrProcess->isForked = true;
+    if (CurrProcess->isForked)
+    {
+        kill(CurrProcess->pid, SIGCONT);
+    }
+    else
+    {
+        int Processpid = fork();
+        if (Processpid == 0)
+        {
+            Processpid = getpid();
+            char remaining[20];
+            sprintf(remaining, "%d", CurrProcess->remainingTime);
+            char quanta[20];
+            sprintf(quanta, "%d", quantum);
+            char *args[] = {"./process.out", remaining, quanta, NULL};
+            printf("initializing process with id %d\n", CurrProcess->id);
+            execvp(args[0], args);
+        }
+        else
+        {
+            CurrProcess->pid = Processpid;
+            return;
+        }
+        return;
+    }
 }
