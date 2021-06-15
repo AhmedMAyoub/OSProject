@@ -13,12 +13,12 @@ int main(int agrc, char *argv[])
     initClk();
     // signal(SIGCONT, handleContinueSignal);
     // signal(SIGSTOP, handlePauseProcess);
-    int start = atoi(argv[1]); //start time upon dequeuing from ready queue
-    remainingtime = atoi(argv[2]); //remainingtimeaining time upone dequeuing from ready queue
-    int id = atoi(argv[3]); //id of proces
+    //int start = atoi(argv[1]); //start time upon dequeuing from ready queue
+    remainingtime = atoi(argv[1]); //remainingtimeaining time upone dequeuing from ready queue
+    //int id = atoi(argv[3]); //id of proces
     //TODO The process needs to get the remainingtimeaining time from somewhere
     int currtime;
-    printf("process with pid %d and start time %d and remainingtimeaining time %d\n", id, start,remainingtime);
+    ///printf("process with pid %d and start time %d and remainingtimeaining time %d\n", id, start,remainingtime);
     int prevtime = getClk();
     while (remainingtime> 0){
         currtime = getClk();
